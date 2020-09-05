@@ -1,0 +1,208 @@
+
+.data 
+
+array:   .align 2
+   .space 40           # assignment 10 size array by memory
+input_msg: .asciiz "input next number"
+output_msg: .asciiz "output array"
+space: .asciiz "  "
+new_line: .asciiz "\n"
+
+.text
+
+.main:
+   la $s1, array         # &srray[i]
+   
+   li $t1, 10         # $t1 = 10 / array size /  
+   li $s3, 0         # $t2 = 0 / i 
+
+   move $s4, $s1
+   
+input_loop:
+   li $t1, 10         # $t1 init = size
+
+   li $v0,4
+   la $a0, new_line
+   syscall   
+   
+      beq $s3, $t1, exit      # if( i == size ) exit / i = 0 ~ 9
+      
+      li $v0, 4         # print msg ( input next number )
+      la $a0, input_msg
+      syscall
+      
+      li $v0, 5         # scanf input value
+      syscall
+      sw $v0, ($s4)          # $t0 = array[i]
+      
+      
+      addi $t4, $s3, 1      # num + 1
+      move $a0, $s1         # &array[i] 
+      move $a1, $t4         # num + 1
+      
+      jal heap         # heap ( array[], num )
+      
+      jal sort         # sort ( array[], num )
+         
+      jal Display         # Display ( array[], num )      
+      
+      addi $s3, $s3, 1      # i + 1
+      addi $s4, $s4, 4      # &array[i + 1]   
+      
+      j input_loop               
+   j exit
+   
+heap:
+   move $t1, $a0         # $t1 = &array[num]
+   move $t0, $a1         # $t0 = num    
+   
+   li $t2, 1         # $t2 = 1 = i
+
+for1:      
+   move $t9, $t2         # $t9 = i + 1
+
+   blt $t2, $t0, while1       # if ( i < num ) 
+   jr $ra            # return to Input_loop
+   
+while1:   
+
+      addi $t3, $t9,-1      # $t3 = child -1
+      div $t3, $t3, 2         # $t3 = root index  / ( child - 1 ) / 2   
+   
+      sll $t4, $t9, 2         # $t2 = 4 * child index
+      add $t4, $s1, $t4      # $t4 = array address) + $t4 (child index * 4) = &array[child]
+   
+      sll $t5, $t3, 2       # $t5 = 4 * root index
+      add $t5, $s1, $t5      # $t6,= array address) + $t5 (child index * 4) = &array[root]
+
+      lw $t7, ($t4)         # $t7 = array[child]
+      lw $t8, ($t5)         # $t8 = array[root]
+         
+         blt $t7, $t8, swap      # if ( array[child] < array[root] )
+         move $t9, $t3         # child index <- root index
+         bne $t9, $zero, while1      # if( i != 0 ) else   
+         
+         addi $t2, $t2, 1      # i = i + 1
+         move $t9, $t2         # $t9 = i +1
+   
+      j for1                     
+         
+      swap:   move $t6, $t8         # temp $t6 <- array[root]
+         sw $t7, ($t5)          # &array[root] <- array[child]   / array[root] = min value
+         sw $t6, ($t4)         # &array[child] <- array[root]   / array[root] = max value
+
+      move $t9, $t3         # child index <- root index
+      
+      bne $t9, $zero, while1      # if( i != 0 ) else
+      
+      addi $t2, $t2, 1      # i = i + 1
+      move $t9, $t2         # $t9 = i +1
+   
+      j for1               
+   
+   
+sort :
+   #move $s3, $a0         # $s3 = &array[num]   
+   move $s2, $a1         # $s2 = num 
+   
+   move $s5, $s2         # $s5 = num / i
+   
+for2 :
+      addi $s5, $s5, -1   # i= i-1      
+      
+      bnez $s5, then3      # if( num - i != 0  ) then3 
+      jr $ra
+   
+   then3:   sll $t0, $s5, 2         # $t0 = 4 * ((num-1) - 1)
+      add $t0, $s1, $t0      # $t0 = &array[0] + (4 * (i-1)) / &array[num-1]
+      lw $t1, 0($t0)         # $t1 = array[num-1]
+
+            lw $t2, 0($s1)              # temp $t2 <- array[0]   
+      sw $t1, 0($s1)         # &array[0] <- array[num-1] / array[0] = max value
+      sw $t2, 0($t0)         # &array[num-1] <- array[0] / array[child] = min value
+
+      li $t3, 0      # $t3 = root = 0
+      li $t4, 1      # $t4 = child = 1    
+      
+while2:         
+         move $s0, $s5      # $s0 = num - 1      
+         
+         blt $t4, $s0, next2   # if( child < num - 1 ) next         
+         j for2
+
+      next2:   add $t4, $t3, $t3   # $t4 = 2 * root
+         addi $t4, $t4, 1   # $t4 = child = 2 * root + 1
+         
+         addi $t6, $s0, -1   # $t6 = (num-1) - 1
+         
+         sll $t8, $t4, 2      # $t8 = i * 4
+         add $t8, $s1, $t8   # $t8 = &array[child]
+         lw $t9, 0($t8)      # $t9 = array[child]
+            
+         addi $s6, $t8, 4   # $s6 = &array[child + 1]
+         lw $s7, 0($s6)      # $s7 = array[child + 1]
+                     
+         bge $t4, $t6, Else      # if ( child < ((num-1)-1) ) && 
+         bge $s7, $t9, Else      # if ( array[ child+1 ] < array[ child ] ) =>
+         addi $t4, $t4, 1      # child ++
+         j Else
+
+      Else:      sll $t0, $t3, 2      # $t0 = 4 * root index
+            add $t0, $s1, $t0   # $t0 = &array[root]
+            lw $t1, 0($t0)      # $t1 = array[root]
+            
+            sll $t8, $t4, 2      # $t8 = 4 * child index
+            add $t8, $s1, $t8   # $t8 = &array[child] / new
+            lw $t2, 0($t8)      # $t2 = array[child] / new
+
+            bge $t4, $s0, Else2   # if ( child <  i ) &&
+            bge $t2, $t1, Else2   # if ( array[ child ] <  array[root] ) =>
+            
+            lw $t5, 0($t0)      # $t5 <- array[root]
+            sw $t2, 0($t0)      # &array[root] <- array[child] 
+            sw $t5, 0($t8)      # &array[child] <- array[root]
+            j Else2
+      Else2:      
+            move $t3, $t4      # root index <- child index
+            j while2
+                        
+            j for2
+
+Display:
+   move $t1, $a0         # $t1 = &array[num]
+   move $t0, $a1         # $t0 = num 
+
+   li $t9, 0         # i = 1
+   move $t3, $s1         # $t3 = &array[0]
+   addi $t4, $t0,-1
+   
+   li $v0,4
+   la $a0, output_msg
+   syscall
+   
+      
+print_loop:   
+      bne $t9, $t0,print   # while ( i != num  ) return
+      jr $ra
+   
+   print:   li $v0, 4
+      la $a0, space
+      syscall      
+
+      li $v0, 1
+      lw $t5, 0($t3)
+      move $a0, $t5
+      syscall            # print array[i]
+
+      addi $t9, $t9, 1      # i = i + 1
+      addi $t3, $t3, 4      # $t3 = &array[ i + 1 ]
+
+      j print_loop
+
+   li $v0,4
+   la $a0, new_line
+   syscall
+
+exit:
+   li $v0, 10      #exit
+   syscall
