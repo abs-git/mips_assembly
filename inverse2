@@ -1,0 +1,188 @@
+
+.data
+   A: .float 0.0 0.0 0.0
+      .float 0.0 0.0 0.0
+      .float 0.0 0.0 0.0
+   
+   OneAsFloat: .float 1.0
+   message1: .asciiz "Input 3x3 matrix : "
+   newLine: .asciiz "\n"
+   blank: .asciiz "  "
+
+.text
+
+   main: 
+        la $s0, A      #matrixA base address 
+        
+        addi $t2, $zero, 0       # i = 0 = $s3 = Column Number
+        addi $t3, $zero, 0       # j = 0 = $s4 = Row Number
+        
+        li $v0, 4
+   la $a0, message1
+   syscall
+   
+   
+   IncreaseRowIndex:
+      beq $t3, 3, IncreaseColindex    # j = 0; j = 3 then to "IncreaseColindex" fuction
+            # A[i][j]'s physical Address
+           mul $t7, $t2, 3               # column Number * Data_size
+           add $t0, $t7, $t3             # $t0 =         + row number 
+             mul  $t0, $t0, 4              #               * Integer size(4)     = Logical Address
+            add  $t0, $t0, $s0             #               + A's base address    = Physical Address
+            
+             # Input Value A[i][j]
+            jal InputValue
+            addi $t3, $t3, 1               # j++
+            j IncreaseRowIndex
+       
+       InputValue:
+                # Read user's input
+                li $v0, 6
+             syscall          
+             swc1 $f0, ($t0)             # store Value into A[i][j]'s physical Adress
+             jr $ra
+           
+        IncreaseColindex:
+                addi $t2, $t2, 1               # i++
+                addi $t3, $zero, 0             # t3 (j) = 0 , initialize
+                  blt $t2, 3, IncreaseRowIndex            # i <3 then go to function "IncreaseRowindex"
+                  
+         # Load data and store into Register  
+         MatrixAintoRegister:
+           lwc1 $f0, -32($t0)        #f0 = A[0][0]
+           lwc1 $f1, -28($t0)        #f1 = A[0][1]
+           lwc1 $f2, -24($t0)        #f2 = A[0][2]
+      lwc1 $f3, -20($t0)        #f3 = A[1][0]
+      lwc1 $f4, -16($t0)        #f4 = A[1][1]
+      lwc1 $f5, -12($t0)        #f5 = A[1][2]
+      lwc1 $f6, -8($t0)         #f6 = A[2][0]
+      lwc1 $f7, -4($t0)         #f7 = A[2][1]
+      lwc1 $f8, ($t0)             #f8 = A[2][2]
+      
+    #calculate Inverse determinant
+    
+            inverse_determ:
+             mul.s $f10, $f4, $f8        # $f10 = A[1][1] * A[2][2]
+             mul.s $f11, $f5, $f7        # $f11 = A[2][1] * A[1][2] 
+             sub.s $f10, $f10, $f11      # $f10 = A[1][1] * A[2][2] - A[2][1] * A[1][2]
+             mul.s $f10, $f10, $f0       # A[0][0] * $f10
+             
+             mul.s $f11, $f3, $f8        # $f11 = A[1][0] * A[2][2]       
+             mul.s $f12, $f5, $f6        # $f12 = A[1][2] * A[2][0] 
+             sub.s $f11, $f11, $f12      # f11 = A[1][0] * A[2][2] - A[1][2] * A[2][0] 
+             mul.s $f11, $f11, $f1       # A[0][1] * $f11
+             
+             sub.s $f10, $f10, $f11      # $f10 = $f10 - $f11
+
+             mul.s $f11, $f3, $f7        # $f11 = A[1][0] * A[2][1]
+             mul.s $f12, $f4, $f6        # $f12 = A[1][1] * A[2][0]
+             sub.s $f11, $f11, $f12      # $f11 = A[1][0] * A[2][1] - A[1][1] * A[2][0]
+
+             mul.s $f11, $f11, $f2       # $f11 = A[0][2] * $f11
+
+             add.s $f10, $f10, $f11      # $f10 = $f10 + $f11 = determinant
+             
+        lwc1 $f12, OneAsFloat       # $f12 = 1.0
+        div.s $f11, $f12, $f10  # inverse determinant = $f11 = 1.0 / determinant ($f10)
+        
+           # calculate inverse_Matrix A
+            inverse_matrix:
+                
+                # Matrix B is A's inverse Matrix
+                # B[0][1] = (A[0][2] * A[2][1] - A[0][1] * A[2][2])*Inverse determinant
+                mul.s $f10, $f4, $f8      # $f12 = A[0][2] * A[2][1]   
+                mul.s $f12, $f7, $f5      # $f10 = A[0][1] * A[2][2]
+                sub.s $f10, $f10, $f12    # $f10 = $f10 - $f12
+                mul.s $f21, $f10, $f11    #                     * Inverse determinant
+                
+                #B[0][2] = (A[1][2] * A[1][2] - A[0][2] * A[1][1])*Inverse determinant
+                mul.s $f10, $f2, $f7
+                mul.s $f12, $f1, $f8
+                sub.s $f10, $f10, $f12
+                mul.s $f22, $f10, $f11
+                
+                #B[1][0] = (A[1][2] * A[2][0] - A[1][0] * A[2][2])*Inverse determinant
+       mul.s $f10, $f5, $f5
+                mul.s $f12, $f2, $f4
+                sub.s $f10, $f10, $f12
+                mul.s $f23, $f10, $f11
+                
+                #B[1][1] = (A[0][0] * A[2][2] - A[0][2] * A[2][0])*Inverse determinant
+                mul.s $f10, $f5, $f6
+                mul.s $f12, $f3, $f8
+                sub.s $f10, $f10, $f12
+                mul.s $f24, $f10, $f11
+                
+                #B[1][2] = (A[1][0] * A[0][2] - A[0][0] * A[1][2])*Inverse determinant
+                mul.s $f10, $f0, $f8
+                mul.s $f12, $f2, $f6
+                sub.s $f10, $f10, $f12
+                mul.s $f25, $f10, $f11
+                
+                #B[2][0] = (A[1][0] * A[2][1] - A[2][0] * A[1][1])*Inverse determinant
+                mul.s $f10, $f3, $f2
+                mul.s $f12, $f0, $f5
+                sub.s $f10, $f10, $f12
+                mul.s $f26, $f10, $f11
+                #B[2][1] = (A[2][0] * A[0][1] - A[0][0] * A[2][1])*Inverse determinant
+                mul.s $f10, $f3, $f7
+                mul.s $f12, $f6, $f4
+                sub.s $f10, $f10, $f12
+                mul.s $f27, $f10, $f11
+                
+                #B[2][2] = (A[0][0] * A[1][1] - A[1][0] * A[0][1])*Inverse determinant
+                mul.s $f10, $f6, $f1
+                mul.s $f12, $f0, $f7
+                sub.s $f10, $f10, $f12
+                mul.s $f28, $f10, $f11
+                
+                mul.s $f10, $f0, $f4
+                mul.s $f12, $f3, $f1
+                sub.s $f10, $f10, $f12
+                mul.s $f29, $f10, $f11
+                           
+       # save matrix A(-1) to print                    
+       saveMatrixA:
+           swc1 $f21, -32($t0)
+           swc1 $f22, -28($t0)
+           swc1 $f23, -24($t0)
+      swc1 $f24, -20($t0)
+      swc1 $f25, -16($t0)
+      swc1 $f26, -12($t0)
+      swc1 $f27, -8($t0)
+      swc1 $f28, -4($t0)
+      swc1 $f29, ($t0)    
+   
+   # to print first data
+   sub $t0, $t0, 32
+   addi $t1, $zero, 0
+   
+   
+   printMatrixA:
+       # "$t1"th Data print start
+      addi $t1, $t1, 1       # $t1 = $t1 + 1   
+      bgt $t1, 9, exit       # if $t1 > 9 then go to "exit"
+      
+           li $v0, 2
+           lwc1 $f12, ($t0)      
+           syscall
+           
+                       
+           add $t0, $t0, 4
+           
+           jal printBlank         # print Blank
+           j printMatrixA
+      
+           
+        printBlank:
+            li $v0, 4
+            la $a0, blank
+            syscall
+            jr $ra
+            
+         
+   exit:
+      #Tell system this is end of program.
+      li $v0, 10
+      syscall
+      
