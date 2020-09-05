@@ -1,0 +1,79 @@
+
+.data
+    matrixA: .word -4,-7,1
+             .word 0,-3,7
+             .word 4,0,-9
+    matrixX: .word 3
+             .word -100
+             .word 5
+    matrixB: .word 0
+             .word 0
+             .word 0
+    
+    newLine: .asciiz "\n"
+    
+.text
+    main: 
+         la $s0, matrixA      #matrixA base address 
+         la $s1, matrixX      #matrixX base address 
+         la $s2, matrixB      #matrixB base address 
+         
+         addi $v1, $zero, 0       # sum = 0
+         addi $t2, $zero, 0       # i = 0 = $s3 = Column Number
+         addi $t3, $zero, 0       # k = 0 = $s4 = Row Number
+       
+        
+         
+           # fuction
+   for:
+      
+      beq $t3, 3, IncreaseColindex    # i = 0; i = 3 then to "IncreaseColindex" fuction
+        # Find X[i][0]'s Value!
+        mul $t6, $t3, 4              # ( row Number + 0 ) * Integer size(4)
+        add $t5, $s1, $t6            # X[k][0]'s Physical address = base address + row Number = $t5
+        
+        lw  $t4, ($t5)                # A[i][k]'s value set to the $t4
+        
+        # Find A[i][k]'s Value!
+        mul $t7, $t2, 3               # column Number * Data_size
+        add $t0, $t7, $t3             # $t0 =         + row number 
+        mul  $t0, $t0, 4              #               * Integer size(4)     = Logical Address
+         add  $t0, $t0, $s0             #               + A's base address    = Physical Address
+         
+         lw   $t1, ($t0)               # A[i][k]'s value set to the $t1
+       
+        mul  $t1, $t1, $t4             # A[i][k] * X[k][0]
+        add  $v1, $v1, $t1             # sum + = A[i][k] * X[k][0]
+        addi $t3, $t3, 1               # k++
+               
+       j for
+       
+        IncreaseColindex:
+           mul $t6, $t2, 4                 #B[k][0]'s Logical Address = Column Number * 4 (Byte)
+           add $t6, $s2, $t6               #B[k][0]'s Physical Address = B's Base Address + Logical Address
+           sw  $v1, ($t6)                  # store word $v1 -> B[k][0]
+           
+           # Print out B[k][0]
+           lw $a0, ($t6)
+           li $v0, 1
+           syscall
+           
+           # Print New LIne
+           jal printNewLine              
+           
+                addi $t2, $t2, 1               # i++
+                addi $t3, $zero, 0             # t3 (k) = 0 , initialize
+                addi $v1, $zero, 0             # sum = 0 , initialize
+                  blt $t2, 3, for            # i <3 then go to function "for"
+   
+   exit:
+      #Tell system this is end of program.
+      li $v0, 10
+      syscall
+      
+   printNewLine:
+        li $v0, 4
+      la $a0, newLine
+      syscall
+      jr $ra
+         
