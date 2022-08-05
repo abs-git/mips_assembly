@@ -1,7 +1,8 @@
-# mips_assembly
+## MIPS assembly assignments
 
-mips assembly code
-
-# Inverse matrix
-# Heapsort
-# Matrix multiplication
+> - donghyun kang
+> - October. 2019
+>
+> ### Inverse matrix
+> ### Heapsort
+> ### Matrix multiplication
